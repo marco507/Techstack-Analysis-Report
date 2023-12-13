@@ -13,9 +13,8 @@ class Scraper():
     def scrape(self, url):
         success = False
         while not success:
- 
-            request_url = f'https://api.rocketscrape.com/?apiKey=b190aa9e-ed41-4314-bf92-f694807f50b6&url={url}'
-            html = requests.get(request_url)
+            
+            html = requests.get(url)
             
             if html.status_code == 200:
                 if self.debug:
