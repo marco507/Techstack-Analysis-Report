@@ -43,11 +43,11 @@ class Report():
 
         data = _self.get_database_stats()
 
-        st.markdown("""Analyzing the technology stacks of websites can provide valuable 
+        st.markdown("""Analyzing what different technologies are used by websites can provide valuable 
                     insights for businesses looking to gain a competitive edge in the digital realm. 
-                    By delving into the tools and technologies employed by various websites, we 
-                    can uncover potential leads, identify market trends, and make informed strategic decisions. 
-                    This interactive report is based on a self-compiled dataset of business websites with the following stats:
+                    By examining these technology stacks, we can uncover potential leads, identify market trends,
+                    and make informed strategic decisions. This interactive report is based on a self-compiled dataset 
+                    of business websites with the following statistics:
                     """)
 
         with st.container(border=True):
@@ -172,9 +172,20 @@ class Report():
             return branches
 
 
-        st.markdown("""The first aspect about the dataset that we will explore are the aggregations of technologies
-                     and technology categories by branch. Select the number of data points, the group, and if you want the usage
-                     count for a single branch or all branches combined. Finally, click the load button to display the graph.""")
+        st.markdown("""The first question that we try to answer with our data will be how often individual
+                    technologies or technology categories are used throughout the dataset. For clarification, 
+                    a technology is for example something like "jQuery" and the corresponding category would be
+                    "JavaScript libraries".""")
+        
+        st.markdown("""There are three options to narrow down the data that interests you. 
+                    First, you can choose how many technologies or categories are displayed by moving the slider.
+                    Next you can decide if you want to show individual technologies or technology categories
+                    with the first dropdown menu. With the second dropdown, you can select a specific industry branch 
+                    or if the usage count should be taken over all branches.""")
+        
+        st.markdown("""To show the data based on your selection
+                    click the load button. The results are always plotted in descending order, meaning from highest to 
+                    lowest usage count.""")
         
         with st.form('data_selection'):
             limit = st.slider('Top', 5, 25, 5)
@@ -189,7 +200,8 @@ class Report():
             
             if submitted:
                 data = _self.get_branch_aggregations(group_selection, aggregation_selection, limit)
-                fig = px.bar(data, x=group_selection, y=aggregation_selection)
+                fig = px.bar(data, x=group_selection, y=aggregation_selection,
+                             labels={group_selection: group_selection, aggregation_selection: 'Usage count'})
                 st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     @st.cache_data
@@ -235,9 +247,10 @@ class Report():
 
             return data
         
-        st.markdown("""On this page, we take a detailed look into the individual technology categories.
+        st.markdown("""On this page, we take a detailed look into the composition of the technology categories.
                     You can select multiple categories of interest and click the load button to 
-                    see what technologies are most often used in the respective category.""")
+                    see what technologies are most often used in the respective category. Each category is shown in
+                    a separate tab.""")
         
         with st.form('data_selection'):
             categories = get_categories()
@@ -302,30 +315,39 @@ class Report():
         
         data = _self.get_stack_data()
 
-        st.markdown("""Finally, we can explore the technology stacks which are generated with the Apriori algorithm.
+        st.markdown("""Finally, we can examine the technology stacks which are generated with the Apriori algorithm.
                     The algorithm was developed to extract frequent item sets, for example, store items that are often
-                     bought together. We use it here to uncover web technologies that are frequently employed as a stack. 
-                    Choose the number of items in an item set and the support, which is the minimum percentage that items must 
-                    appear together to be statistically significant.""")
+                    bought together. We use it here to uncover web technologies that are frequently employed as a stack.""") 
+                    
+        st.markdown("""To discover possible tech stacks, first choose the number of technologies that should comprise a stack.
+                    This would be the size of our item set. Next, enter the percentage of how many records in our database must
+                    contain a certain combination of technologies to be considered a stack. This value is called the support.""")
+
+        st.markdown("""To illustrate this, look at the pre-set values below. If you click on the load button, you will get
+                    item sets or in our case tech stacks that contain three technologies which appear together in 25 percent of
+                    all websites in our database.""")  
+
         
         with st.form('data_selection'):
-            support = st.number_input('Support', min_value=0.10, max_value=1.00, value=0.25)
-            items = st.slider('Number of items', min_value=2, max_value=5, value=3)
+            items = st.slider('Number of items in a stack', min_value=2, max_value=6, value=3)
+            support = st.number_input('Percentage of websites (Support)', min_value=1, max_value=100, value=25)
 
-            frequent_itemsets = apriori(data, min_support=support, use_colnames=True)
+            frequent_itemsets = apriori(data, min_support=support/100, use_colnames=True)
             frequent_itemsets['length'] = frequent_itemsets['itemsets'].apply(lambda x: len(x))
 
             frequent_itemsets = frequent_itemsets[ 
-                (frequent_itemsets['length'] >= items) & (frequent_itemsets['support'] >= support) ]
+                (frequent_itemsets['length'] >= items) & (frequent_itemsets['support'] >= support/100)]
 
             frequent_itemsets = frequent_itemsets.sort_values(by='support', ascending=False)
-            frequent_itemsets['itemsets'] = frequent_itemsets['itemsets'].apply(lambda x: ','.join(x))
+            frequent_itemsets['itemsets'] = frequent_itemsets['itemsets'].apply(lambda x: '-'.join(x))
+            frequent_itemsets['support'] = frequent_itemsets['support'].apply(lambda x: round(x * 100, 1))
 
             submitted = st.form_submit_button("Load")
             if submitted:
                 if frequent_itemsets['itemsets'].to_list():
-                    fig = px.bar(frequent_itemsets, x='itemsets', y='support')
+                    fig = px.bar(frequent_itemsets, x='itemsets', y='support',
+                                 labels={'itemsets': 'Techstacks', 'support': 'Percentage of websites using the stack'})
                     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
                 
                 else:
-                    st.write('No data for the given parameters.')
+                    st.write('There are no techstacks with the given parameters.')
